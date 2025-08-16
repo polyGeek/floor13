@@ -246,6 +246,12 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  void saveCurrentFile() {
+    if (_activeTab != null && _activeTab!.isModified) {
+      saveFile(_activeTab!.filePath, _activeTab!.content);
+    }
+  }
+
   void saveAllFiles() {
     for (final tab in _openTabs) {
       if (tab.isModified) {
