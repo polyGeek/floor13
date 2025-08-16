@@ -287,13 +287,23 @@ class AppState extends ChangeNotifier {
 
   Future<void> _loadClaudeSettings() async {
     try {
+      debugPrint('AppState: Loading Claude settings...');
       final settings = await _storageService.loadSettings();
       if (settings['claudeSettings'] != null) {
         _claudeSettings = ClaudeSettings.fromJson(settings['claudeSettings'] as Map<String, dynamic>);
+        debugPrint('AppState: Claude settings loaded, API key present: ${_claudeSettings.apiKey != null}');
         if (_claudeSettings.apiKey != null && _claudeSettings.apiKey!.isNotEmpty) {
+          debugPrint('AppState: Creating Claude service with API key');
           _claudeService = ClaudeService(settings: _claudeSettings);
+          // Create initial conversation if none exists
+          if (_conversations.isEmpty) {
+            debugPrint('AppState: Creating initial conversation');
+            createNewConversation();
+          }
         }
         notifyListeners();
+      } else {
+        debugPrint('AppState: No Claude settings found');
       }
     } catch (e) {
       debugPrint('Error loading Claude settings: $e');
@@ -301,15 +311,19 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> saveClaudeApiKey(String apiKey) async {
+    debugPrint('AppState: Saving Claude API key, length: ${apiKey.length}');
     _claudeSettings = _claudeSettings.copyWith(apiKey: apiKey);
     _claudeService = ClaudeService(settings: _claudeSettings);
+    debugPrint('AppState: Claude service created');
     
     final settings = await _storageService.loadSettings();
     settings['claudeSettings'] = _claudeSettings.toJson();
     await _storageService.saveSettings(settings);
+    debugPrint('AppState: Settings saved');
     
     // Create initial conversation when API key is set
     if (_conversations.isEmpty) {
+      debugPrint('AppState: Creating initial conversation after API key save');
       createNewConversation();
     }
     
@@ -361,8 +375,18 @@ class AppState extends ChangeNotifier {
   }
   
   Future<void> sendMessageToClaude(String message) async {
+    debugPrint('AppState: sendMessageToClaude called with message: $message');
+    debugPrint('AppState: _claudeService is null? ${_claudeService == null}');
+    debugPrint('AppState: _activeConversation is null? ${_activeConversation == null}');
+    
     if (_claudeService == null || _activeConversation == null) {
       debugPrint('Claude service or conversation not initialized');
+      if (_claudeService == null) {
+        debugPrint('AppState: Claude service is null - API key may not be set');
+      }
+      if (_activeConversation == null) {
+        debugPrint('AppState: No active conversation');
+      }
       return;
     }
     

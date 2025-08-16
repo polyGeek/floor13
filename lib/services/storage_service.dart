@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/project.dart';
 
@@ -46,7 +47,7 @@ class StorageService {
         return json.decode(contents);
       }
     } catch (e) {
-      print('Error loading settings: $e');
+      debugPrint('Error loading settings: $e');
     }
     
     return _getDefaultSettings();
@@ -57,7 +58,7 @@ class StorageService {
       final file = await _getSettingsFile();
       await file.writeAsString(json.encode(settings));
     } catch (e) {
-      print('Error saving settings: $e');
+      debugPrint('Error saving settings: $e');
     }
   }
   

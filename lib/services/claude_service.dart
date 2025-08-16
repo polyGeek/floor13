@@ -17,12 +17,27 @@ class ClaudeService {
     required String userMessage,
     required List<Message> conversationHistory,
   }) async {
+    debugPrint('ClaudeService: sendMessage called with message: $userMessage');
+    
     if (settings.apiKey == null || settings.apiKey!.isEmpty) {
+      debugPrint('ClaudeService: API key not configured');
       throw Exception('API key not configured');
     }
 
+    debugPrint('ClaudeService: API key present, length: ${settings.apiKey!.length}');
+
     try {
       final messages = _buildMessageHistory(conversationHistory, userMessage);
+      debugPrint('ClaudeService: Built message history with ${messages.length} messages');
+      
+      final requestBody = {
+        'model': _model,
+        'messages': messages,
+        'max_tokens': settings.maxTokensPerMessage,
+        'temperature': 0.7,
+      };
+      debugPrint('ClaudeService: Sending request to $_baseUrl');
+      debugPrint('ClaudeService: Request body: ${jsonEncode(requestBody)}');
       
       final response = await http.post(
         Uri.parse(_baseUrl),
@@ -31,18 +46,18 @@ class ClaudeService {
           'x-api-key': settings.apiKey!,
           'anthropic-version': '2023-06-01',
         },
-        body: jsonEncode({
-          'model': _model,
-          'messages': messages,
-          'max_tokens': settings.maxTokensPerMessage,
-          'temperature': 0.7,
-        }),
+        body: jsonEncode(requestBody),
       );
 
+      debugPrint('ClaudeService: Response status code: ${response.statusCode}');
+      debugPrint('ClaudeService: Response body: ${response.body}');
+      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final content = data['content'][0]['text'] as String;
         final usage = data['usage'];
+        
+        debugPrint('ClaudeService: Received response, content length: ${content.length}');
         
         return Message(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -53,6 +68,7 @@ class ClaudeService {
           codeBlocks: extractCodeBlocks(content),
         );
       } else {
+        debugPrint('ClaudeService: Error response: ${response.body}');
         final error = jsonDecode(response.body);
         throw Exception('API Error: ${error['error']?['message'] ?? 'Unknown error'}');
       }

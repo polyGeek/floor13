@@ -110,7 +110,7 @@ class _MessageBubbleState extends State<MessageBubble> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         color: _isHovered 
-          ? const Color(0xFF2A2A2A).withOpacity(0.3) 
+          ? const Color(0xFF2A2A2A).withValues(alpha: 0.3) 
           : Colors.transparent,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,7 +140,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: isUser 
-                    ? const Color(0xFF0084FF).withOpacity(0.9)
+                    ? const Color(0xFF0084FF).withValues(alpha: 0.9)
                     : const Color(0xFF2D2D30),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -206,7 +206,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                           _formatTimestamp(widget.message.timestamp),
                           style: TextStyle(
                             color: isUser 
-                              ? Colors.white.withOpacity(0.7)
+                              ? Colors.white.withValues(alpha: 0.7)
                               : const Color(0xFF969696),
                             fontSize: 11,
                           ),

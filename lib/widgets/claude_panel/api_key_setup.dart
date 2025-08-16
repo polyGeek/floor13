@@ -184,7 +184,7 @@ class _ApiKeySetupState extends State<ApiKeySetup> {
             decoration: BoxDecoration(
               color: const Color(0xFF1E1E1E),
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFF464647).withOpacity(0.5)),
+              border: Border.all(color: const Color(0xFF464647).withValues(alpha: 0.5)),
             ),
             child: Row(
               children: [
