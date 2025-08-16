@@ -156,6 +156,7 @@ class _CodeEditorState extends State<CodeEditor> {
               padding: const EdgeInsets.only(right: 10, top: 8, bottom: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: List.generate(lines.length, (index) {
                   return Container(
                     height: fontSize * lineHeight,
@@ -181,8 +182,12 @@ class _CodeEditorState extends State<CodeEditor> {
             child: language != 'plaintext'
                 ? SingleChildScrollView(
                     controller: _scrollController,
-                    child: Stack(
-                      children: [
+                    child: Container(
+                      constraints: BoxConstraints(
+                        minHeight: MediaQuery.of(context).size.height,
+                      ),
+                      child: Stack(
+                        children: [
                         // Syntax highlighted preview
                         Padding(
                           padding: const EdgeInsets.all(8),
@@ -222,11 +227,16 @@ class _CodeEditorState extends State<CodeEditor> {
                         ),
                       ],
                     ),
+                    ),
                   )
                 : SingleChildScrollView(
                     controller: _scrollController,
-                    padding: const EdgeInsets.all(8),
-                    child: TextField(
+                    child: Container(
+                      constraints: BoxConstraints(
+                        minHeight: MediaQuery.of(context).size.height,
+                      ),
+                      padding: const EdgeInsets.all(8),
+                      child: TextField(
                       controller: _controller,
                       focusNode: _focusNode,
                       maxLines: null,
@@ -244,6 +254,7 @@ class _CodeEditorState extends State<CodeEditor> {
                       onChanged: (value) {
                         setState(() {});
                       },
+                    ),
                     ),
                   ),
           ),

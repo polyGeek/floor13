@@ -197,6 +197,26 @@ The team will be working together to create something that feels like a natural 
 - Implement proper error handling for file system operations
 - Use isolates for heavy operations to maintain UI responsiveness
 
+## Git Workflow
+
+When working on F13or, follow this branching strategy:
+
+1. **Session Branch**: At the start of each new session, create a branch named with today's date + descriptive word
+   - Example: `2025-08-16-improvements`, `2025-08-17-claude-integration`
+   
+2. **Task Sub-branches**: For each specific task within the session:
+   - Create a sub-branch from the session branch
+   - Example: `2025-08-16-improvements/fix-editor-alignment`
+   - Complete the work and test
+   - Merge back to the session branch when done
+   
+3. **Merging to Main**: At the end of the session:
+   - Ensure all sub-branches are merged to session branch
+   - Test the combined changes
+   - Merge session branch to main
+
+This approach keeps the git history organized and makes it easy to track what was accomplished in each session.
+
 ---
 
 # Astra's Memory & Development Context
