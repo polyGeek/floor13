@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/vs2015.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../models/app_state.dart';
 import '../../models/editor_tab.dart';
@@ -138,8 +139,11 @@ class _CodeEditorState extends State<CodeEditor> {
     final language = _getLanguageFromExtension(widget.tab.filePath);
     final lines = _controller.text.split('\n');
     
-    // Use monospace font - Flutter will use the system's default monospace font
-    const fontFamily = 'monospace';
+    // Use Google Fonts Roboto Mono for proper fixed-width font
+    final textStyle = GoogleFonts.robotoMono(
+      fontSize: 14.0,
+      height: 1.5,
+    );
     const fontSize = 14.0;
     const lineHeight = 1.5;
 
@@ -163,10 +167,9 @@ class _CodeEditorState extends State<CodeEditor> {
                     alignment: Alignment.centerRight,
                     child: Text(
                       '${index + 1}',
-                      style: const TextStyle(
-                        color: Color(0xFF858585),
+                      style: GoogleFonts.robotoMono(
+                        color: const Color(0xFF858585),
                         fontSize: 13,
-                        fontFamily: fontFamily,
                       ),
                     ),
                   );
@@ -195,11 +198,7 @@ class _CodeEditorState extends State<CodeEditor> {
                             _controller.text,
                             language: language,
                             theme: vs2015Theme,
-                            textStyle: const TextStyle(
-                              fontFamily: fontFamily,
-                              fontSize: fontSize,
-                              height: lineHeight,
-                            ),
+                            textStyle: textStyle,
                             padding: EdgeInsets.zero,
                           ),
                         ),
@@ -208,11 +207,8 @@ class _CodeEditorState extends State<CodeEditor> {
                           controller: _controller,
                           focusNode: _focusNode,
                           maxLines: null,
-                          style: const TextStyle(
+                          style: textStyle.copyWith(
                             color: Colors.transparent,
-                            fontFamily: fontFamily,
-                            fontSize: fontSize,
-                            height: lineHeight,
                           ),
                           cursorColor: const Color(0xFFFFFFFF),
                           decoration: const InputDecoration(
@@ -240,11 +236,8 @@ class _CodeEditorState extends State<CodeEditor> {
                       controller: _controller,
                       focusNode: _focusNode,
                       maxLines: null,
-                      style: const TextStyle(
-                        color: Color(0xFFCCCCCC),
-                        fontFamily: fontFamily,
-                        fontSize: fontSize,
-                        height: lineHeight,
+                      style: textStyle.copyWith(
+                        color: const Color(0xFFCCCCCC),
                       ),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
