@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/app_state.dart';
+import 'claude_panel/api_key_setup.dart';
+import 'claude_panel/chat_interface.dart';
 
 class RightPanel extends StatelessWidget {
   const RightPanel({super.key});
@@ -15,48 +19,16 @@ class RightPanel extends StatelessWidget {
           ),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            child: const Text(
-              'CLAUDE',
-              style: TextStyle(
-                color: Color(0xFF969696),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-          const Divider(
-            color: Color(0xFF464647),
-            height: 1,
-          ),
-          Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.chat_bubble_outline,
-                    size: 48,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Claude integration will appear here',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+      child: Consumer<AppState>(
+        builder: (context, appState, _) {
+          // Show API key setup if no key is configured
+          if (!appState.hasClaudeApiKey) {
+            return const ApiKeySetup();
+          }
+          
+          // Show chat interface when API key is configured
+          return const ChatInterface();
+        },
       ),
     );
   }

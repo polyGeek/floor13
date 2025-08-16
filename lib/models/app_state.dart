@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'project.dart';
 import 'editor_tab.dart';
+import 'claude_settings.dart';
 import '../services/storage_service.dart';
 
 class AppState extends ChangeNotifier {
@@ -12,15 +13,19 @@ class AppState extends ChangeNotifier {
   final Map<String, String> _fileContents = {};
   String? _currentProjectPath;
   final StorageService _storageService = StorageService();
+  ClaudeSettings _claudeSettings = ClaudeSettings();
 
   Project? get activeProject => _activeProject;
   List<Project> get openProjects => List.unmodifiable(_openProjects);
   List<EditorTab> get openTabs => List.unmodifiable(_openTabs);
   EditorTab? get activeTab => _activeTab;
   String? get currentProjectPath => _currentProjectPath;
+  ClaudeSettings get claudeSettings => _claudeSettings;
+  bool get hasClaudeApiKey => _claudeSettings.apiKey != null && _claudeSettings.apiKey!.isNotEmpty;
   
   AppState() {
     _loadLastSession();
+    _loadClaudeSettings();
   }
   
   Future<void> _loadLastSession() async {
@@ -265,6 +270,38 @@ class AppState extends ChangeNotifier {
       (tab) => tab.id == tabId,
       orElse: () => _openTabs.first,
     );
+    notifyListeners();
+  }
+
+  Future<void> _loadClaudeSettings() async {
+    try {
+      final settings = await _storageService.loadSettings();
+      if (settings['claudeSettings'] != null) {
+        _claudeSettings = ClaudeSettings.fromJson(settings['claudeSettings'] as Map<String, dynamic>);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error loading Claude settings: $e');
+    }
+  }
+
+  Future<void> saveClaudeApiKey(String apiKey) async {
+    _claudeSettings = _claudeSettings.copyWith(apiKey: apiKey);
+    
+    final settings = await _storageService.loadSettings();
+    settings['claudeSettings'] = _claudeSettings.toJson();
+    await _storageService.saveSettings(settings);
+    
+    notifyListeners();
+  }
+
+  Future<void> updateClaudeSettings(ClaudeSettings newSettings) async {
+    _claudeSettings = newSettings;
+    
+    final settings = await _storageService.loadSettings();
+    settings['claudeSettings'] = _claudeSettings.toJson();
+    await _storageService.saveSettings(settings);
+    
     notifyListeners();
   }
 }
