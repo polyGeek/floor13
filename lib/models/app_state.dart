@@ -3,7 +3,10 @@ import 'dart:io';
 import 'project.dart';
 import 'editor_tab.dart';
 import 'claude_settings.dart';
+import 'conversation.dart';
+import 'message.dart';
 import '../services/storage_service.dart';
+import '../services/claude_service.dart';
 
 class AppState extends ChangeNotifier {
   Project? _activeProject;
@@ -14,6 +17,11 @@ class AppState extends ChangeNotifier {
   String? _currentProjectPath;
   final StorageService _storageService = StorageService();
   ClaudeSettings _claudeSettings = ClaudeSettings();
+  
+  // Claude conversation state
+  final List<Conversation> _conversations = [];
+  Conversation? _activeConversation;
+  ClaudeService? _claudeService;
 
   Project? get activeProject => _activeProject;
   List<Project> get openProjects => List.unmodifiable(_openProjects);
@@ -22,6 +30,10 @@ class AppState extends ChangeNotifier {
   String? get currentProjectPath => _currentProjectPath;
   ClaudeSettings get claudeSettings => _claudeSettings;
   bool get hasClaudeApiKey => _claudeSettings.apiKey != null && _claudeSettings.apiKey!.isNotEmpty;
+  
+  // Claude getters
+  List<Conversation> get conversations => List.unmodifiable(_conversations);
+  Conversation? get activeConversation => _activeConversation;
   
   AppState() {
     _loadLastSession();
@@ -278,6 +290,9 @@ class AppState extends ChangeNotifier {
       final settings = await _storageService.loadSettings();
       if (settings['claudeSettings'] != null) {
         _claudeSettings = ClaudeSettings.fromJson(settings['claudeSettings'] as Map<String, dynamic>);
+        if (_claudeSettings.apiKey != null && _claudeSettings.apiKey!.isNotEmpty) {
+          _claudeService = ClaudeService(settings: _claudeSettings);
+        }
         notifyListeners();
       }
     } catch (e) {
@@ -287,6 +302,23 @@ class AppState extends ChangeNotifier {
 
   Future<void> saveClaudeApiKey(String apiKey) async {
     _claudeSettings = _claudeSettings.copyWith(apiKey: apiKey);
+    _claudeService = ClaudeService(settings: _claudeSettings);
+    
+    final settings = await _storageService.loadSettings();
+    settings['claudeSettings'] = _claudeSettings.toJson();
+    await _storageService.saveSettings(settings);
+    
+    // Create initial conversation when API key is set
+    if (_conversations.isEmpty) {
+      createNewConversation();
+    }
+    
+    notifyListeners();
+  }
+
+  Future<void> updateClaudeSettings(ClaudeSettings newSettings) async {
+    _claudeSettings = newSettings;
+    _claudeService = ClaudeService(settings: _claudeSettings);
     
     final settings = await _storageService.loadSettings();
     settings['claudeSettings'] = _claudeSettings.toJson();
@@ -295,13 +327,232 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateClaudeSettings(ClaudeSettings newSettings) async {
-    _claudeSettings = newSettings;
+  // Claude conversation methods
+  void createNewConversation() {
+    final conversation = Conversation(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: 'New Chat ${_conversations.length + 1}',
+      messages: [],
+      createdAt: DateTime.now(),
+      lastMessageAt: DateTime.now(),
+    );
     
-    final settings = await _storageService.loadSettings();
-    settings['claudeSettings'] = _claudeSettings.toJson();
-    await _storageService.saveSettings(settings);
+    _conversations.add(conversation);
+    _activeConversation = conversation;
+    notifyListeners();
+  }
+  
+  void switchConversation(String conversationId) {
+    _activeConversation = _conversations.firstWhere(
+      (c) => c.id == conversationId,
+      orElse: () => _conversations.first,
+    );
+    notifyListeners();
+  }
+  
+  void closeConversation(String conversationId) {
+    _conversations.removeWhere((c) => c.id == conversationId);
+    
+    if (_activeConversation?.id == conversationId) {
+      _activeConversation = _conversations.isNotEmpty ? _conversations.last : null;
+    }
     
     notifyListeners();
+  }
+  
+  Future<void> sendMessageToClaude(String message) async {
+    if (_claudeService == null || _activeConversation == null) {
+      debugPrint('Claude service or conversation not initialized');
+      return;
+    }
+    
+    // Add user message
+    final userMessage = Message(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      content: message,
+      isUser: true,
+      timestamp: DateTime.now(),
+      tokenCount: _claudeService!.estimateTokens(message),
+    );
+    
+    final updatedMessages = List<Message>.from(_activeConversation!.messages)
+      ..add(userMessage);
+    
+    _activeConversation = _activeConversation!.copyWith(
+      messages: updatedMessages,
+      lastMessageAt: DateTime.now(),
+    );
+    notifyListeners();
+    
+    try {
+      // Send to Claude API
+      final response = await _claudeService!.sendMessage(
+        userMessage: message,
+        conversationHistory: _activeConversation!.messages,
+      );
+      
+      // Add Claude's response
+      final allMessages = List<Message>.from(_activeConversation!.messages)
+        ..add(response);
+      
+      _activeConversation = _activeConversation!.copyWith(
+        messages: allMessages,
+        lastMessageAt: DateTime.now(),
+        totalTokens: _activeConversation!.totalTokens + 
+          (userMessage.tokenCount ?? 0) + 
+          (response.tokenCount ?? 0),
+      );
+      
+      // Update conversation title if it's the first exchange
+      if (_activeConversation!.messages.length == 2) {
+        final title = message.length > 50 
+          ? '${message.substring(0, 50)}...' 
+          : message;
+        _activeConversation = _activeConversation!.copyWith(title: title);
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error sending message to Claude: $e');
+      
+      // Add error message
+      final errorMessage = Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        content: 'Error: ${e.toString()}',
+        isUser: false,
+        timestamp: DateTime.now(),
+      );
+      
+      final allMessages = List<Message>.from(_activeConversation!.messages)
+        ..add(errorMessage);
+      
+      _activeConversation = _activeConversation!.copyWith(
+        messages: allMessages,
+        lastMessageAt: DateTime.now(),
+      );
+      
+      notifyListeners();
+    }
+  }
+  
+  Stream<String> streamMessageToClaude(String message) async* {
+    if (_claudeService == null || _activeConversation == null) {
+      debugPrint('Claude service or conversation not initialized');
+      return;
+    }
+    
+    // Add user message
+    final userMessage = Message(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      content: message,
+      isUser: true,
+      timestamp: DateTime.now(),
+      tokenCount: _claudeService!.estimateTokens(message),
+    );
+    
+    final updatedMessages = List<Message>.from(_activeConversation!.messages)
+      ..add(userMessage);
+    
+    _activeConversation = _activeConversation!.copyWith(
+      messages: updatedMessages,
+      lastMessageAt: DateTime.now(),
+    );
+    notifyListeners();
+    
+    // Add placeholder for streaming response
+    final streamingMessage = Message(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      content: '',
+      isUser: false,
+      timestamp: DateTime.now(),
+      isStreaming: true,
+    );
+    
+    final messagesWithStreaming = List<Message>.from(_activeConversation!.messages)
+      ..add(streamingMessage);
+    
+    _activeConversation = _activeConversation!.copyWith(
+      messages: messagesWithStreaming,
+      lastMessageAt: DateTime.now(),
+    );
+    notifyListeners();
+    
+    try {
+      String fullContent = '';
+      await for (final chunk in _claudeService!.streamMessage(
+        userMessage: message,
+        conversationHistory: updatedMessages,
+      )) {
+        fullContent = chunk;
+        
+        // Update streaming message
+        final lastIndex = _activeConversation!.messages.length - 1;
+        final updatedStreamingMessage = streamingMessage.copyWith(
+          content: fullContent,
+        );
+        
+        final updatedMessages = List<Message>.from(_activeConversation!.messages);
+        updatedMessages[lastIndex] = updatedStreamingMessage;
+        
+        _activeConversation = _activeConversation!.copyWith(
+          messages: updatedMessages,
+        );
+        notifyListeners();
+        
+        yield fullContent;
+      }
+      
+      // Finalize the message
+      final lastIndex = _activeConversation!.messages.length - 1;
+      final finalMessage = streamingMessage.copyWith(
+        content: fullContent,
+        isStreaming: false,
+        tokenCount: _claudeService!.estimateTokens(fullContent),
+        codeBlocks: _claudeService!.extractCodeBlocks(fullContent),
+      );
+      
+      final finalMessages = List<Message>.from(_activeConversation!.messages);
+      finalMessages[lastIndex] = finalMessage;
+      
+      _activeConversation = _activeConversation!.copyWith(
+        messages: finalMessages,
+        lastMessageAt: DateTime.now(),
+        totalTokens: _activeConversation!.totalTokens + 
+          (userMessage.tokenCount ?? 0) + 
+          (finalMessage.tokenCount ?? 0),
+      );
+      
+      // Update conversation title if it's the first exchange
+      if (_activeConversation!.messages.length == 2) {
+        final title = message.length > 50 
+          ? '${message.substring(0, 50)}...' 
+          : message;
+        _activeConversation = _activeConversation!.copyWith(title: title);
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error streaming message from Claude: $e');
+      
+      // Replace streaming message with error
+      final lastIndex = _activeConversation!.messages.length - 1;
+      final errorMessage = Message(
+        id: streamingMessage.id,
+        content: 'Error: ${e.toString()}',
+        isUser: false,
+        timestamp: DateTime.now(),
+        isStreaming: false,
+      );
+      
+      final errorMessages = List<Message>.from(_activeConversation!.messages);
+      errorMessages[lastIndex] = errorMessage;
+      
+      _activeConversation = _activeConversation!.copyWith(
+        messages: errorMessages,
+        lastMessageAt: DateTime.now(),
+      );
+      
+      notifyListeners();
+    }
   }
 }
