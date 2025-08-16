@@ -30,19 +30,6 @@ class _MainScreenState extends State<MainScreen> {
     _splitViewController.dispose();
     super.dispose();
   }
-}
-
-// Intent classes for keyboard shortcuts
-class SaveIntent extends Intent {
-  const SaveIntent();
-}
-
-class SaveAllIntent extends Intent {
-  const SaveAllIntent();
-}
-
-class CloseTabIntent extends Intent {
-  const CloseTabIntent();
 
   @override
   Widget build(BuildContext context) {
@@ -111,4 +98,17 @@ class CloseTabIntent extends Intent {
       ),
     );
   }
+}
+
+// Intent classes for keyboard shortcuts
+class SaveIntent extends Intent {
+  const SaveIntent();
+}
+
+class SaveAllIntent extends Intent {
+  const SaveAllIntent();
+}
+
+class CloseTabIntent extends Intent {
+  const CloseTabIntent();
 }
